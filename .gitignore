@@ -1,3 +1,7 @@
 *.sqlite
+*.spec
+*.exe
 envs
+build
+dist
 __pycache__
