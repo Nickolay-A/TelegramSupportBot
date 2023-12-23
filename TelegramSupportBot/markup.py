@@ -1,5 +1,5 @@
 from telebot import types
-from core import my_reqs, get_reqs, get_agents, get_passwords, get_files, get_icon_from_status, get_file_text
+from core import my_reqs, get_reqs, get_agents, get_passwords, get_icon_from_status
 
 
 def page(markup, number, list, call, callback_cancel):
@@ -9,14 +9,14 @@ def page(markup, number, list, call, callback_cancel):
         max_nums = 'None'
 
     if str(number) == '1':
-        item1 = types.InlineKeyboardButton(f"⏹", callback_data=f'None')
+        item1 = types.InlineKeyboardButton("⏹", callback_data="None")
     else:
-        item1 = types.InlineKeyboardButton(f"◀️", callback_data=f'{call}:{int(number) - 1}')
+        item1 = types.InlineKeyboardButton("◀️", callback_data=f'{call}:{int(number) - 1}')
 
     if str(number) == str(max_nums):
-        item2 = types.InlineKeyboardButton(f"⏹", callback_data=f'None')
+        item2 = types.InlineKeyboardButton("⏹", callback_data="None")
     else:
-        item2 = types.InlineKeyboardButton(f"▶️", callback_data=f'{call}:{int(number) + 1}')
+        item2 = types.InlineKeyboardButton("▶️", callback_data=f'{call}:{int(number) + 1}')
 
     item3 = types.InlineKeyboardButton("Назад", callback_data=callback_cancel)
 
@@ -27,29 +27,28 @@ def page(markup, number, list, call, callback_cancel):
             pass
         else:
             markup.add(item1, item2)
-    
-    return markup 
 
+    return markup 
 
 def markup_main():
     markup_main = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item1 = types.KeyboardButton("✏️ Написать запрос")
-    item2 = types.KeyboardButton("✉️ Мои запросы")
+    item1 = types.KeyboardButton("✏️ Поболтать со специалистом")
+    # item2 = types.KeyboardButton("✉️ Мои запросы")
+    item3 = types.KeyboardButton("✉️ Оставить свои контакты")
     markup_main.row(item1)
-    markup_main.row(item2)
+    markup_main.row(item3)
 
     return markup_main
-
 
 def markup_agent():
     markup_agent = types.InlineKeyboardMarkup(row_width=1)
     item1 = types.InlineKeyboardButton("❗️ Ожидают ответа от поддержки", callback_data='waiting_reqs:1')
     item2 = types.InlineKeyboardButton("⏳ Ожидают ответа от пользователя", callback_data='answered_reqs:1')
     item3 = types.InlineKeyboardButton("✅ Завершенные запросы", callback_data='confirm_reqs:1')
-    markup_agent.add(item1, item2, item3)
+    item4 = types.InlineKeyboardButton("✉️ Сведения о пользователях", callback_data='contacts')
+    markup_agent.add(item1, item2, item3, item4)
 
     return markup_agent
-
 
 def markup_cancel():
     markup_cancel = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -66,7 +65,8 @@ def markup_admin():
     item3 = types.InlineKeyboardButton("🔑 Одноразовые пароли", callback_data='all_passwords:1')
     item4 = types.InlineKeyboardButton("🎲 Сгенерировать одноразовые пароли", callback_data='generate_passwords')
     item5 = types.InlineKeyboardButton("⛔️ Выключить бота", callback_data='stop_bot:wait')
-    markup_admin.add(item1, item2, item3, item4, item5)
+    item6 = types.InlineKeyboardButton("✉️ Сведения о пользователях", callback_data='contacts')
+    markup_admin.add(item1, item2, item3, item4, item5, item6)
 
     return markup_admin
 
@@ -110,10 +110,9 @@ def markup_request_action(req_id, req_status, callback):
     markup_request_action = types.InlineKeyboardMarkup(row_width=1)
 
     if req_status == 'confirm':
-        item1 = types.InlineKeyboardButton("🗂 Показать файлы", callback_data=f'req_files:{req_id}:{callback}:1')
         item2 = types.InlineKeyboardButton("Назад", callback_data=formatted_callback)
 
-        markup_request_action.add(item1, item2)
+        markup_request_action.add(item2)
 
     elif req_status == 'answered' or req_status == 'waiting':
         if 'my_reqs:' in formatted_callback:
@@ -122,17 +121,9 @@ def markup_request_action(req_id, req_status, callback):
             status_user = 'agent'
 
         item1 = types.InlineKeyboardButton("✏️ Добавить сообщение", callback_data=f'add_message:{req_id}:{status_user}')
-        item2 = types.InlineKeyboardButton("🗂 Показать файлы", callback_data=f'req_files:{req_id}:{callback}:1')
-
-        if status_user == 'user':
-            item3 = types.InlineKeyboardButton("✅ Завершить запрос", callback_data=f'confirm_req:wait:{req_id}')
-
-        item4 = types.InlineKeyboardButton("Назад", callback_data=formatted_callback)
-
-        if status_user == 'user':
-            markup_request_action.add(item1, item2, item3, item4)
-        else:
-            markup_request_action.add(item1, item2, item4)
+        item2 = types.InlineKeyboardButton("✅ Завершить запрос", callback_data=f'confirm_req:wait:{req_id}')
+        item3 = types.InlineKeyboardButton("Назад", callback_data=formatted_callback)
+        markup_request_action.add(item1, item2, item3)
 
     return markup_request_action
 
@@ -174,31 +165,10 @@ def markup_passwords(number):
 
     return markup_passwords, len(passwords)
 
-
-def markup_files(number, req_id, callback):
-    files = get_files(number, req_id)
-
-    markup_files = types.InlineKeyboardMarkup(row_width=3)
-    for file in files:
-        id = file[0]
-        file_name = file[1]
-        type = file[2]
-
-        file_text = get_file_text(file_name, type) 
-        # 📷 | Фото 27.12.2020 14:21:50
-        
-        item = types.InlineKeyboardButton(file_text, callback_data=f'send_file:{id}:{type}')
-        markup_files.add(item)
-    
-    markup_files = page(markup_files, number, files, f'req_files:{req_id}:{callback}', f'open_req:{req_id}:{callback}')
-
-    return markup_files, len(files)
-markup_files('1', '1', '1')
-
 def markup_confirm_stop():
     markup_confirm_stop = types.InlineKeyboardMarkup(row_width=1)
     item1 = types.InlineKeyboardButton("Да", callback_data='stop_bot:confirm')
     item2 = types.InlineKeyboardButton("Нет", callback_data='back_admin')
     markup_confirm_stop.add(item1, item2)
-    
+
     return markup_confirm_stop

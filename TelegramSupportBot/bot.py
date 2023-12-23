@@ -1,4 +1,5 @@
 import config
+import sql
 import core
 import telebot
 import random
@@ -14,7 +15,7 @@ bot = telebot.TeleBot(config.TOKEN, skip_pending=True)
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, '👋🏻 Привет! Это бот для технической поддержки пользователей.\nЕсли у тебя есть какой-либо вопрос или проблема - нажми на кнопку <b>Написать запрос</b> и наши сотрудники в скором времени тебе ответят!', parse_mode='html', reply_markup=markup.markup_main())
+    bot.send_message(message.chat.id, '👋🏻 Привет! Это бот для бла-бла-бла.\nМы хотим предложить ... .Если у тебя останутся вопросы, нажми <b>Поболтать со специалистом</b> и наши сотрудники в скором времени тебе ответят! \nЕсли тебе все подходит, нажми <b>Оставить свои контакты</b>', parse_mode='html', reply_markup=markup.markup_main())
 
 
 @bot.message_handler(commands=['agent'])
@@ -44,25 +45,24 @@ def admin(message):
 @bot.message_handler(content_types=['text'])
 def send_text(message):
     user_id = message.from_user.id
+    req_id = core.get_last_req(user_id)
 
-    if message.text == '✏️ Написать запрос':
-        take_new_request = bot.send_message(message.chat.id, 'Введите свой запрос и наши сотрудники скоро с вами свяжутся.', reply_markup=markup.markup_cancel())
-
-        bot.clear_step_handler_by_chat_id(message.chat.id)
-        bot.register_next_step_handler(take_new_request, get_new_request)
-
-    elif message.text == '✉️ Мои запросы':
-        markup_and_value = markup.markup_reqs(user_id, 'my_reqs', '1')
-        markup_req = markup_and_value[0]
-        value = markup_and_value[1]
-
-        if value == 0:
-            bot.send_message(message.chat.id, 'У вас пока ещё нет запросов.', reply_markup=markup.markup_main())
+    if message.text == '✏️ Поболтать со специалистом':
+        if req_id is None:
+            take_new_request = bot.send_message(message.chat.id, 'Введите свое сообщение и наши сотрудники скоро Вам ответят.', reply_markup=markup.markup_cancel())
+            bot.clear_step_handler_by_chat_id(message.chat.id)
+            bot.register_next_step_handler(take_new_request, get_new_request)
         else:
-            bot.send_message(message.chat.id, 'Ваши запросы:', reply_markup=markup_req)
-    
+            req_id = req_id[0]
+            take_additional_message = bot.send_message(message.chat.id, 'Введите свое сообщение и наши сотрудники скоро Вам ответят.', reply_markup=markup.markup_cancel())
+            bot.clear_step_handler_by_chat_id(message.chat.id)
+            bot.register_next_step_handler(take_additional_message, get_additional_message, req_id, 'user')
+    elif message.text == '✉️ Оставить свои контакты':
+        take_contacts = bot.send_message(message.chat.id, 'Для связи оставьте нам ссылку в телеграмме, номер телефона или какую-нибудь другую социальную сеть. Можете указать удобное для Вас время или другие пожелания. Спасибо!', reply_markup=markup.markup_cancel())
+        bot.clear_step_handler_by_chat_id(message.chat.id)
+        bot.register_next_step_handler(take_contacts, get_contacts)
     else:
-        bot.send_message(message.chat.id, 'Вы возвращены в главное меню.', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, 'Вы возвращены в главное меню. Если хотите написать сообщение, пожалуйста, нажмите <b>Поболтать со специалистом</b> и отправьте своё сообщение через эту форму.', parse_mode='html', reply_markup=markup.markup_main())
 
 
 def get_password_message(message):
@@ -115,59 +115,35 @@ def get_agent_id_message(message):
 def get_new_request(message):
     request = message.text
     user_id = message.from_user.id
-    check_file = core.get_file(message)
 
-    #Если пользователь отправляет файл
-    if check_file != None:
-        file_id = check_file['file_id']
-        file_name = check_file['file_name']
-        type = check_file['type']
-        request = check_file['text']
+    if request is None:
+        take_new_request = bot.send_message(message.chat.id, '⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_cancel())
 
-        if str(request) == 'None':
-            take_new_request = bot.send_message(message.chat.id, '⚠️ Вы не ввели ваш запрос. Попробуйте ещё раз, отправив текст вместе с файлом.', reply_markup=markup.markup_cancel())
+        bot.clear_step_handler_by_chat_id(message.chat.id)
+        bot.register_next_step_handler(take_new_request, get_new_request)
 
-            bot.clear_step_handler_by_chat_id(message.chat.id)
-            bot.register_next_step_handler(take_new_request, get_new_request)
+    elif request.lower() == 'отмена':
+        bot.send_message(message.chat.id, 'Отменено.', reply_markup=markup.markup_main())
+        return
 
-        else:
-            req_id = core.new_req(user_id, request)
-            core.add_file(req_id, file_id, file_name, type)
-
-            bot.send_message(message.chat.id, f'✅ Ваш запрос под ID {req_id} создан. Посмотреть текущие запросы можно нажав кнопку <b>Мои текущие запросы</b>', parse_mode='html', reply_markup=markup.markup_main())        
-    
-    #Если пользователь отправляет только текст
     else:
-        if request == None:
-            take_new_request = bot.send_message(message.chat.id, '⚠️ Отправляемый вами тип данных не поддерживается в боте. Попробуйте еще раз отправить ваш запрос, использовав один из доступных типов данных (текст, файлы, фото, видео, аудио, голосовые сообщения)', reply_markup=markup.markup_cancel())
+        req_id = core.new_req(user_id, request)
+        bot.send_message(message.chat.id, '✅ Ваше сообщение успешно отправлено!', parse_mode='html', reply_markup=markup.markup_main())
 
-            bot.clear_step_handler_by_chat_id(message.chat.id)
-            bot.register_next_step_handler(take_new_request, get_new_request)
-
-        elif request.lower() == 'отмена':
-            bot.send_message(message.chat.id, 'Отменено.', reply_markup=markup.markup_main())
-            return
-
-        else:
-            req_id = core.new_req(user_id, request)
-            bot.send_message(message.chat.id, f'✅ Ваш запрос под ID {req_id} создан. Посмотреть текущие запросы можно нажав кнопку <b>Мои текущие запросы</b>', parse_mode='html', reply_markup=markup.markup_main())
-
+def get_contacts(message):
+    request = message.text
+    user_id = message.from_user.id
+    if request:
+        core.add_contacts(user_id, request)
+        bot.send_message(message.chat.id, 'Спасибо! Мы свяжемся с Вами в ближайшее время.', parse_mode='html', reply_markup=markup.markup_main())
+    else:
+        bot.send_message(message.chat.id, 'Что-то пошло не так..(\nПовторите заново.', parse_mode='html', reply_markup=markup.markup_main())
 
 def get_additional_message(message, req_id, status):
     additional_message = message.text
-    check_file = core.get_file(message)
-    
-    #Если пользователь отправляет файл
-    if check_file != None:
-        file_id = check_file['file_id']
-        file_name = check_file['file_name']
-        type = check_file['type']
-        additional_message = check_file['text']
-
-        core.add_file(req_id, file_id, file_name, type)
 
     if additional_message == None:
-        take_additional_message = bot.send_message(chat_id=message.chat.id, text='⚠️ Отправляемый вами тип данных не поддерживается в боте. Попробуйте еще раз отправить ваше сообщение, использовав один из доступных типов данных (текст, файлы, фото, видео, аудио, голосовые сообщения).', reply_markup=markup.markup_cancel())
+        take_additional_message = bot.send_message(chat_id=message.chat.id, text='⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_cancel())
 
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.register_next_step_handler(take_additional_message, get_additional_message, req_id, status)
@@ -180,39 +156,16 @@ def get_additional_message(message, req_id, status):
         if additional_message != 'None':
             core.add_message(req_id, additional_message, status)
 
-        if check_file != None:
-            if additional_message != 'None':
-                text = '✅ Ваш файл и сообщение успешно отправлены!'
-            else:
-                text = '✅ Ваш файл успешно отправлен!'
-        else:
-            text = '✅ Ваше сообщение успешно отправлено!'
-        
+        text = '✅ Ваше сообщение успешно отправлено!'
+
         bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
 
         if status == 'agent':
             user_id = core.get_user_id_of_req(req_id)
-            try:
-                if additional_message == 'None':
-                    additional_message = ''
 
-                bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос ID {req_id}!\n\n🧑‍💻 Ответ агента поддержки:\n{additional_message}', reply_markup=markup.markup_main())
-
-                if type == 'photo':
-                    bot.send_photo(user_id, photo=file_id, reply_markup=markup.markup_main())
-                elif type == 'document':
-                    bot.send_document(user_id, data=file_id, reply_markup=markup.markup_main())
-                elif type == 'video':
-                    bot.send_video(user_id, data=file_id, reply_markup=markup.markup_main())
-                elif type == 'audio':
-                    bot.send_audio(user_id, audio=file_id, reply_markup=markup.markup_main())
-                elif type == 'voice':
-                    bot.send_voice(user_id, voice=file_id, reply_markup=markup.markup_main())
-                else:
-                    bot.send_message(user_id, additional_message, reply_markup=markup.markup_main())
-            except:
-                pass
-        
+            if additional_message == 'None':
+                additional_message = ''
+            bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ агента поддержки:\n{additional_message}', reply_markup=markup.markup_main())
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
@@ -220,14 +173,10 @@ def callback_inline(call):
 
     if call.message:
         if ('my_reqs:' in call.data) or ('waiting_reqs:' in call.data) or ('answered_reqs:' in call.data) or ('confirm_reqs:' in call.data):
-            """
-            Обработчик кнопок для:
-
-            ✉️ Мои запросы
-            ❗️ Ожидают ответа от поддержки,
-            ⏳ Ожидают ответа от пользователя
-            ✅ Завершенные запросы  
-            """
+            # Обработчик кнопок для:
+            # ❗️ Ожидают ответа от поддержки
+            # ⏳ Ожидают ответа от пользователя
+            # ✅ Завершенные запросы
 
             parts = call.data.split(':')
             callback = parts[0]
@@ -277,7 +226,7 @@ def callback_inline(call):
             req_id = parts[1]
             status_user = parts[2]
 
-            take_additional_message = bot.send_message(chat_id=call.message.chat.id, text='Отправьте ваше сообщение, использовав один из доступных типов данных (текст, файлы, фото, видео, аудио, голосовые сообщения)', reply_markup=markup.markup_cancel())
+            take_additional_message = bot.send_message(chat_id=call.message.chat.id, text='Отправьте ваше сообщение.', reply_markup=markup.markup_cancel())
 
             bot.register_next_step_handler(take_additional_message, get_additional_message, req_id, status_user)
 
@@ -309,50 +258,6 @@ def callback_inline(call):
                     bot.send_message(chat_id=call.message.chat.id, text="✅ Запрос успешно завершён.", reply_markup=markup.markup_main())
 
                 bot.answer_callback_query(call.id)
-
-        #Файлы запроса
-        elif 'req_files:' in call.data:
-            parts = call.data.split(':')
-            req_id = parts[1]
-            callback = parts[2]
-            number = parts[3]
-
-            markup_and_value = markup.markup_files(number, req_id, callback)
-            markup_files = markup_and_value[0]
-            value = markup_and_value[1]
-
-            if value == 0:
-                bot.send_message(chat_id=call.message.chat.id, text='⚠️ Файлы не обнаружены.', reply_markup=markup.markup_main())
-                bot.answer_callback_query(call.id)
-                return
-
-            try:
-                bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text='Нажмите на файл, чтобы получить его.', reply_markup=markup_files)
-            except:
-                bot.send_message(chat_id=call.message.chat.id, text='Нажмите на файл, чтобы получить его.', reply_markup=markup_files)
-
-            bot.answer_callback_query(call.id)
-
-        #Отправить файл
-        elif 'send_file:' in call.data:
-            parts = call.data.split(':')
-            id = parts[1]
-            type = parts[2]
-
-            file_id = core.get_file_id(id)
-
-            if type == 'photo':
-                bot.send_photo(call.message.chat.id, photo=file_id, reply_markup=markup.markup_main())
-            elif type == 'document':
-                bot.send_document(call.message.chat.id, data=file_id, reply_markup=markup.markup_main())
-            elif type == 'video':
-                bot.send_video(call.message.chat.id, data=file_id, reply_markup=markup.markup_main())
-            elif type == 'audio':
-                bot.send_audio(call.message.chat.id, audio=file_id, reply_markup=markup.markup_main())
-            elif type == 'voice':
-                bot.send_voice(call.message.chat.id, voice=file_id, reply_markup=markup.markup_main())
-            
-            bot.answer_callback_query(call.id)
 
         #Вернуться назад в панель агента
         elif call.data == 'back_agent':
@@ -450,11 +355,28 @@ def callback_inline(call):
             for password in passwords:
                 text_passwords += f'{i}. {password}\n'
                 i += 1
-            
+
             bot.send_message(call.message.chat.id, f"✅ Сгенерировано {i-1} паролей:\n\n{text_passwords}", parse_mode='html', reply_markup=markup.markup_main())
             bot.send_message(call.message.chat.id, 'Нажмите на пароль, чтобы удалить его', parse_mode='html', reply_markup=markup.markup_passwords('1')[0])
 
             bot.answer_callback_query(call.id)
+        
+        #Показать имеющиеся контакты
+        elif call.data == 'contacts':
+            contacts_text = ''
+            i = 1
+            contacts = core.get_contacts()
+            if contacts:
+                for contact_id, contact_info, date in contacts:
+                    contacts_text += f'{i}. Пользователь {contact_id}\n{contact_info}\n({date})\n'
+                    i += 1
+
+                bot.send_message(call.message.chat.id, f"В базе имеется {len(contacts)} сведений о контактах:\n\n{contacts_text}", parse_mode='html', reply_markup=markup.markup_main())
+                bot.answer_callback_query(call.id)
+            
+            else:
+                bot.send_message(call.message.chat.id, f"В базе нет сведений о контактах пользователей", parse_mode='html', reply_markup=markup.markup_main())
+                bot.answer_callback_query(call.id)
 
         #Остановить бота
         elif 'stop_bot:' in call.data:
