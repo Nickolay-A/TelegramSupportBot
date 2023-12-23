@@ -166,6 +166,13 @@ def get_additional_message(message, req_id, status):
             if additional_message == 'None':
                 additional_message = ''
             bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ агента поддержки:\n{additional_message}', reply_markup=markup.markup_main())
+        
+        elif status == 'user':
+            agents = core.get_agents_all()
+
+            for agent in agents:
+                agent_id = int(agent[0])
+                bot.send_message(agent_id, '⚠️ Получен запрос от пользователя, пожалуйста проверьте!', reply_markup=markup.markup_agent())
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):

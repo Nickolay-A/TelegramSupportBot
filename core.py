@@ -231,6 +231,19 @@ def get_agents(number):
 
     return agents
 
+# Получить агентов (всех)
+def get_agents_all():
+    con = sqlite3.connect(config.SQLite)
+    cur = con.cursor()
+
+    cur.execute(f"SELECT `agent_id` FROM agents")
+    agents = cur.fetchall()
+
+    cur.close()
+    con.close()
+
+    return agents
+
 # Получить мои запросы с лимитом
 def my_reqs(number, user_id):
     limit = (int(number) * 10) - 10
