@@ -1,3 +1,5 @@
 *.sqlite
+
+TelegramSupportBot/config.py
 envs
 __pycache__
