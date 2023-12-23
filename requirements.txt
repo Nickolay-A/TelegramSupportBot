@@ -1,1 +1,2 @@
 pytelegrambotapi == 3.7.6
+pyinstaller      == 6.3.0
