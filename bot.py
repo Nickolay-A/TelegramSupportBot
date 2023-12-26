@@ -136,6 +136,11 @@ def get_contacts(message):
     if request:
         core.add_contacts(user_id, request)
         bot.send_message(message.chat.id, 'Спасибо! Мы свяжемся с Вами в ближайшее время.', parse_mode='html', reply_markup=markup.markup_main())
+
+        agents = core.get_agents_all()
+        for agent in agents:
+            agent_id = int(agent[0])
+            bot.send_message(agent_id, '⚠️ Новые сведения о пользователе добавлены в базу, пожалуйста проверьте!', reply_markup=markup.markup_agent())
     else:
         bot.send_message(message.chat.id, 'Что-то пошло не так..(\nПовторите заново.', parse_mode='html', reply_markup=markup.markup_main())
 
