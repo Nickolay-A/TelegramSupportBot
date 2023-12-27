@@ -170,18 +170,19 @@ def get_additional_message(message, req_id, status):
         if additional_message != 'None':
             core.add_message(req_id, additional_message, status)
 
-        text = 'Благодарим за интерес, ваше сообщение успешно отправлено! В ближайшее время мы ответим на все интересующие вас вопросы.'
-
-        bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
-
         if status == 'agent':
-            user_id = core.get_user_id_of_req(req_id)
+            text = 'Сообщение доставлено пользователю.'
+            bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
 
+            user_id = core.get_user_id_of_req(req_id)
             if additional_message == 'None':
                 additional_message = ''
             bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ сотрудника компании "Таврида Электрик":\n{additional_message}', reply_markup=markup.markup_main())
-        
+
         elif status == 'user':
+            text = 'Благодарим за интерес, ваше сообщение успешно отправлено! В ближайшее время мы ответим на все интересующие вас вопросы.'
+            bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
+
             agents = core.get_agents_all()
             if agents:
                 for agent in agents:
