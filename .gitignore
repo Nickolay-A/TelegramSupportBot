@@ -1,6 +1,8 @@
 *.sqlite
 *.spec
 *.exe
+*.zip
+
 envs
 build
 dist

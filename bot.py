@@ -15,7 +15,12 @@ bot = telebot.TeleBot(config.TOKEN, skip_pending=True)
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(message.chat.id, '👋🏻 Привет! Это бот для бла-бла-бла.\nМы хотим предложить ... .Если у тебя останутся вопросы, нажми <b>Поболтать со специалистом</b> и наши сотрудники в скором времени тебе ответят! \nЕсли тебе все подходит, нажми <b>Оставить свои контакты</b>', parse_mode='html', reply_markup=markup.markup_main())
+    bot.send_message(
+            message.chat.id, 
+            'Привет! Благодарим за интерес к работе в компании "Таврида Электрик". Мы хотим предложить вам пройти обучение и поработать на реальных проектах компании\nЕсли вы уже со всем ознакомились и готовы с нового года включиться в работу – нажмите <b>Оставить свои контакты</b>\nЕсли хотите получить дополнительную информацию – нажмите <b>Задать вопросы</b>',
+            parse_mode='html',
+            reply_markup=markup.markup_main()
+        )
 
 
 @bot.message_handler(commands=['agent'])
@@ -49,20 +54,20 @@ def send_text(message):
 
     if message.text == '✏️ Поболтать со специалистом':
         if req_id is None:
-            take_new_request = bot.send_message(message.chat.id, 'Введите свое сообщение и наши сотрудники скоро Вам ответят.', reply_markup=markup.markup_cancel())
+            take_new_request = bot.send_message(message.chat.id, 'Здесь вы можете уточнить любые детали, которых вам не хватило для принятия решения о работе в компании (в одном сообщении можно узнать сразу всё, что вас интересует)', reply_markup=markup.markup_cancel())
             bot.clear_step_handler_by_chat_id(message.chat.id)
             bot.register_next_step_handler(take_new_request, get_new_request)
         else:
             req_id = req_id[0]
-            take_additional_message = bot.send_message(message.chat.id, 'Введите свое сообщение и наши сотрудники скоро Вам ответят.', reply_markup=markup.markup_cancel())
+            take_additional_message = bot.send_message(message.chat.id, 'Остались ещё вопросы? Задавайте и мы на всё ответим.', reply_markup=markup.markup_cancel())
             bot.clear_step_handler_by_chat_id(message.chat.id)
             bot.register_next_step_handler(take_additional_message, get_additional_message, req_id, 'user')
     elif message.text == '✉️ Оставить свои контакты':
-        take_contacts = bot.send_message(message.chat.id, 'Для связи оставьте нам ссылку в телеграмме, номер телефона или какую-нибудь другую социальную сеть. Можете указать удобное для Вас время или другие пожелания. Спасибо!', reply_markup=markup.markup_cancel())
+        take_contacts = bot.send_message(message.chat.id, 'Для связи оставьте нам, пожалуйста, свои данные (мы обязуемся их никому не разглашать):\n- ФИО\n- ВУЗ, специальность, курс\n- телефон или имя пользователя в telegram (или другой контакт с указанием мессенджера)\n- другие пожелания при необходимости', reply_markup=markup.markup_cancel())
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.register_next_step_handler(take_contacts, get_contacts)
     else:
-        bot.send_message(message.chat.id, 'Вы возвращены в главное меню. Если хотите написать сообщение, пожалуйста, нажмите <b>Поболтать со специалистом</b> и отправьте своё сообщение через эту форму.', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, 'Если вы уже со всем ознакомились и готовы включиться в работу – нажмите <b>Оставить свои контакты</b>\nЕсли у вас остались какие-то вопросы – нажмите <b>Задать вопросы</b>', parse_mode='html', reply_markup=markup.markup_main())
 
 
 def get_password_message(message):
@@ -128,21 +133,24 @@ def get_new_request(message):
 
     else:
         req_id = core.new_req(user_id, request)
-        bot.send_message(message.chat.id, '✅ Ваше сообщение успешно отправлено!', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, 'Благодарим за интерес и надеемся на плодотворное сотрудничество! Вскоре мы с Вами свяжемся и уточним все детали', parse_mode='html', reply_markup=markup.markup_main())
 
 def get_contacts(message):
     request = message.text
     user_id = message.from_user.id
-    if request:
+    if request is None:
+        bot.send_message(message.chat.id, '⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_main())
+    elif request.lower() == 'отмена':
+        bot.send_message(message.chat.id, 'Отменено.', reply_markup=markup.markup_main())
+        return
+    else:
         core.add_contacts(user_id, request)
-        bot.send_message(message.chat.id, 'Спасибо! Мы свяжемся с Вами в ближайшее время.', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, 'Спасибо! Мы свяжемся с Вами в ближайшее время', parse_mode='html', reply_markup=markup.markup_main())
 
         agents = core.get_agents_all()
         for agent in agents:
             agent_id = int(agent[0])
             bot.send_message(agent_id, '⚠️ Новые сведения о пользователе добавлены в базу, пожалуйста проверьте!', reply_markup=markup.markup_agent())
-    else:
-        bot.send_message(message.chat.id, 'Что-то пошло не так..(\nПовторите заново.', parse_mode='html', reply_markup=markup.markup_main())
 
 def get_additional_message(message, req_id, status):
     additional_message = message.text
@@ -161,7 +169,7 @@ def get_additional_message(message, req_id, status):
         if additional_message != 'None':
             core.add_message(req_id, additional_message, status)
 
-        text = '✅ Ваше сообщение успешно отправлено!'
+        text = 'Благодарим за интерес и надеемся на плодотворное сотрудничество! Вскоре мы с Вами свяжемся и уточним все детали'
 
         bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
 
@@ -170,7 +178,7 @@ def get_additional_message(message, req_id, status):
 
             if additional_message == 'None':
                 additional_message = ''
-            bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ агента поддержки:\n{additional_message}', reply_markup=markup.markup_main())
+            bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ сотрудника компании "Таврида Электрик":\n{additional_message}', reply_markup=markup.markup_main())
         
         elif status == 'user':
             agents = core.get_agents_all()
