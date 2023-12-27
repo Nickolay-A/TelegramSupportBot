@@ -1,6 +1,7 @@
 import config
 import sql
 import core
+import helper
 import telebot
 import random
 import datetime
@@ -15,12 +16,7 @@ bot = telebot.TeleBot(config.TOKEN, skip_pending=True)
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.send_message(
-            message.chat.id, 
-            'Привет! Благодарим за интерес к работе в компании "Таврида Электрик". Мы хотим предложить вам пройти обучение и поработать на реальных проектах компании\nЕсли вы уже со всем ознакомились и готовы с нового года включиться в работу – нажмите <b>Оставить свои контакты</b>\nЕсли хотите получить дополнительную информацию – нажмите <b>Задать вопросы</b>',
-            parse_mode='html',
-            reply_markup=markup.markup_main()
-        )
+    bot.send_message(message.chat.id, helper.hello_message, parse_mode='html', reply_markup=markup.markup_main())
 
 
 @bot.message_handler(commands=['agent'])
@@ -47,27 +43,29 @@ def admin(message):
         bot.send_message(message.chat.id, '🚫 Эта команда доступна только администратору.')
 
 
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(content_types = helper.all_content_types)
 def send_text(message):
     user_id = message.from_user.id
     req_id = core.get_last_req(user_id)
 
-    if message.text == '✏️ Поболтать со специалистом':
+    if message.text == "✏️ Задать вопросы":
         if req_id is None:
-            take_new_request = bot.send_message(message.chat.id, 'Здесь вы можете уточнить любые детали, которых вам не хватило для принятия решения о работе в компании (в одном сообщении можно узнать сразу всё, что вас интересует)', reply_markup=markup.markup_cancel())
+            take_new_request = bot.send_message(message.chat.id, helper.first_question, reply_markup=markup.markup_cancel())
             bot.clear_step_handler_by_chat_id(message.chat.id)
             bot.register_next_step_handler(take_new_request, get_new_request)
         else:
             req_id = req_id[0]
-            take_additional_message = bot.send_message(message.chat.id, 'Остались ещё вопросы? Задавайте и мы на всё ответим.', reply_markup=markup.markup_cancel())
+            take_additional_message = bot.send_message(message.chat.id, helper.non_first_question, reply_markup=markup.markup_cancel())
             bot.clear_step_handler_by_chat_id(message.chat.id)
             bot.register_next_step_handler(take_additional_message, get_additional_message, req_id, 'user')
     elif message.text == '✉️ Оставить свои контакты':
-        take_contacts = bot.send_message(message.chat.id, 'Для связи оставьте нам, пожалуйста, свои данные (мы обязуемся их никому не разглашать):\n- ФИО\n- ВУЗ, специальность, курс\n- телефон или имя пользователя в telegram (или другой контакт с указанием мессенджера)\n- другие пожелания при необходимости', reply_markup=markup.markup_cancel())
+        take_contacts = bot.send_message(message.chat.id, helper.before_contacts, reply_markup=markup.markup_cancel())
         bot.clear_step_handler_by_chat_id(message.chat.id)
         bot.register_next_step_handler(take_contacts, get_contacts)
+    elif message.content_type != 'text':
+        bot.send_message(message.chat.id, helper.alert, parse_mode='html', reply_markup=markup.markup_main())
     else:
-        bot.send_message(message.chat.id, 'Если вы уже со всем ознакомились и готовы включиться в работу – нажмите <b>Оставить свои контакты</b>\nЕсли у вас остались какие-то вопросы – нажмите <b>Задать вопросы</b>', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, helper.dummy, parse_mode='html', reply_markup=markup.markup_main())
 
 
 def get_password_message(message):
@@ -122,10 +120,7 @@ def get_new_request(message):
     user_id = message.from_user.id
 
     if request is None:
-        take_new_request = bot.send_message(message.chat.id, '⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_cancel())
-
-        bot.clear_step_handler_by_chat_id(message.chat.id)
-        bot.register_next_step_handler(take_new_request, get_new_request)
+        take_new_request = bot.send_message(message.chat.id, helper.alert, parse_mode='html', reply_markup=markup.markup_main())
 
     elif request.lower() == 'отмена':
         bot.send_message(message.chat.id, 'Отменено.', reply_markup=markup.markup_main())
@@ -133,34 +128,31 @@ def get_new_request(message):
 
     else:
         req_id = core.new_req(user_id, request)
-        bot.send_message(message.chat.id, 'Благодарим за интерес, ваше сообщение успешно отправлено! В ближайшее время мы ответим на все интересующие вас вопросы', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, helper.after_question, parse_mode='html', reply_markup=markup.markup_main())
 
 def get_contacts(message):
     request = message.text
     user_id = message.from_user.id
     if request is None:
-        bot.send_message(message.chat.id, '⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, helper.alert, parse_mode='html', reply_markup=markup.markup_main())
     elif request.lower() == 'отмена':
         bot.send_message(message.chat.id, 'Отменено.', reply_markup=markup.markup_main())
         return
     else:
         core.add_contacts(user_id, request)
-        bot.send_message(message.chat.id, 'Благодарим за интерес и надеемся на плодотворное сотрудничество! В январе мы с вами свяжемся и уточним все детали', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, helper.after_contacts, parse_mode='html', reply_markup=markup.markup_main())
 
         agents = core.get_agents_all()
         if agents:
             for agent in agents:
                 agent_id = int(agent[0])
-                bot.send_message(agent_id, '⚠️ Новые сведения о пользователе добавлены в базу, пожалуйста проверьте!', reply_markup=markup.markup_agent())
+                bot.send_message(agent_id, '✅ Новые сведения о пользователе добавлены в базу, пожалуйста проверьте!', reply_markup=markup.markup_agent())
 
 def get_additional_message(message, req_id, status):
     additional_message = message.text
 
     if additional_message is None:
-        take_additional_message = bot.send_message(chat_id=message.chat.id, text='⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_cancel())
-
-        bot.clear_step_handler_by_chat_id(message.chat.id)
-        bot.register_next_step_handler(take_additional_message, get_additional_message, req_id, status)
+        take_additional_message = bot.send_message(chat_id=message.chat.id, text=helper.alert, parse_mode='html', reply_markup=markup.markup_main())
 
     elif additional_message.lower() == 'отмена':
         bot.send_message(message.chat.id, 'Отменено.', reply_markup=markup.markup_main())
@@ -177,17 +169,17 @@ def get_additional_message(message, req_id, status):
             user_id = core.get_user_id_of_req(req_id)
             if additional_message == 'None':
                 additional_message = ''
-            bot.send_message(user_id, f'⚠️ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ сотрудника компании "Таврида Электрик":\n{additional_message}', reply_markup=markup.markup_main())
+            bot.send_message(user_id, f'✅ Получен новый ответ на ваш запрос!\n\n🧑‍💻 Ответ сотрудника компании "Таврида Электрик":\n{additional_message}', reply_markup=markup.markup_main())
 
         elif status == 'user':
-            text = 'Благодарим за интерес, ваше сообщение успешно отправлено! В ближайшее время мы ответим на все интересующие вас вопросы.'
+            text = helper.after_question
             bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
 
             agents = core.get_agents_all()
             if agents:
                 for agent in agents:
                     agent_id = int(agent[0])
-                    bot.send_message(agent_id, '⚠️ Получен запрос от пользователя, пожалуйста проверьте!', reply_markup=markup.markup_agent())
+                    bot.send_message(agent_id, '✅ Получен запрос от пользователя, пожалуйста проверьте!', reply_markup=markup.markup_agent())
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):

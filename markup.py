@@ -32,7 +32,7 @@ def page(markup, number, list, call, callback_cancel):
 
 def markup_main():
     markup_main = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    item1 = types.KeyboardButton("✏️ Поболтать со специалистом")
+    item1 = types.KeyboardButton("✏️ Задать вопросы")
     # item2 = types.KeyboardButton("✉️ Мои запросы")
     item3 = types.KeyboardButton("✉️ Оставить свои контакты")
     markup_main.row(item1)
