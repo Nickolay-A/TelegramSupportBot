@@ -133,7 +133,7 @@ def get_new_request(message):
 
     else:
         req_id = core.new_req(user_id, request)
-        bot.send_message(message.chat.id, 'Благодарим за интерес и надеемся на плодотворное сотрудничество! В январе мы с вами свяжемся и уточним все детали', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, 'Благодарим за интерес, ваше сообщение успешно отправлено! В ближайшее время мы ответим на все интересующие вас вопросы', parse_mode='html', reply_markup=markup.markup_main())
 
 def get_contacts(message):
     request = message.text
@@ -145,17 +145,18 @@ def get_contacts(message):
         return
     else:
         core.add_contacts(user_id, request)
-        bot.send_message(message.chat.id, 'Спасибо! Мы свяжемся с Вами в ближайшее время', parse_mode='html', reply_markup=markup.markup_main())
+        bot.send_message(message.chat.id, 'Благодарим за интерес и надеемся на плодотворное сотрудничество! В январе мы с вами свяжемся и уточним все детали', parse_mode='html', reply_markup=markup.markup_main())
 
         agents = core.get_agents_all()
-        for agent in agents:
-            agent_id = int(agent[0])
-            bot.send_message(agent_id, '⚠️ Новые сведения о пользователе добавлены в базу, пожалуйста проверьте!', reply_markup=markup.markup_agent())
+        if agents:
+            for agent in agents:
+                agent_id = int(agent[0])
+                bot.send_message(agent_id, '⚠️ Новые сведения о пользователе добавлены в базу, пожалуйста проверьте!', reply_markup=markup.markup_agent())
 
 def get_additional_message(message, req_id, status):
     additional_message = message.text
 
-    if additional_message == None:
+    if additional_message is None:
         take_additional_message = bot.send_message(chat_id=message.chat.id, text='⚠️ Отправляемый вами тип данных не поддерживается в боте.', reply_markup=markup.markup_cancel())
 
         bot.clear_step_handler_by_chat_id(message.chat.id)
@@ -169,7 +170,7 @@ def get_additional_message(message, req_id, status):
         if additional_message != 'None':
             core.add_message(req_id, additional_message, status)
 
-        text = 'Благодарим за интерес и надеемся на плодотворное сотрудничество! В январе мы с вами свяжемся и уточним все детали'
+        text = 'Благодарим за интерес, ваше сообщение успешно отправлено! В ближайшее время мы ответим на все интересующие вас вопросы.'
 
         bot.send_message(message.chat.id, text, reply_markup=markup.markup_main())
 
@@ -182,10 +183,10 @@ def get_additional_message(message, req_id, status):
         
         elif status == 'user':
             agents = core.get_agents_all()
-
-            for agent in agents:
-                agent_id = int(agent[0])
-                bot.send_message(agent_id, '⚠️ Получен запрос от пользователя, пожалуйста проверьте!', reply_markup=markup.markup_agent())
+            if agents:
+                for agent in agents:
+                    agent_id = int(agent[0])
+                    bot.send_message(agent_id, '⚠️ Получен запрос от пользователя, пожалуйста проверьте!', reply_markup=markup.markup_agent())
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
