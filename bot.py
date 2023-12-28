@@ -12,6 +12,9 @@ from telebot import apihelper
 if config.PROXY_URL:
     apihelper.proxy = {'https': config.PROXY_URL}
 
+sys.stdout = open('log.txt', 'a')
+sys.stderr = open('log.txt', 'a')
+
 bot = telebot.TeleBot(config.TOKEN, skip_pending=True)
 
 @bot.message_handler(commands=['start'])
