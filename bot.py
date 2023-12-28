@@ -133,6 +133,12 @@ def get_new_request(message):
         req_id = core.new_req(user_id, request)
         bot.send_message(message.chat.id, helper.after_question, parse_mode='html', reply_markup=markup.markup_main())
 
+        agents = core.get_agents_all()
+        if agents:
+            for agent in agents:
+                agent_id = int(agent[0])
+                bot.send_message(agent_id, '✅ Получен запрос от пользователя, пожалуйста проверьте!', reply_markup=markup.markup_agent())
+
 def get_contacts(message):
     request = message.text
     user_id = message.from_user.id
