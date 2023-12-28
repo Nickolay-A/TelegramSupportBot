@@ -2,6 +2,7 @@
 *.spec
 *.exe
 *.zip
+*.txt
 
 envs
 build
