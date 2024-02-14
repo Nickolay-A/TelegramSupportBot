@@ -1,24 +1,23 @@
+"""Модуль для изготовления скомпилированных .exe файлов"""
 import subprocess
 import shutil
 import os
-import zipfile
 
 
-command = 'pyinstaller --onefile bot.py'
-subprocess.run(command, shell=True)
+if os.path.exists('./exe_files'):
+    shutil.rmtree('./exe_files')
+os.makedirs('./exe_files')
 
-command = 'pyinstaller --onefile restart.py'
-subprocess.run(command, shell=True)
+for file in (
+    'bot.exe',
+    'restart.exe',
+):
+    subprocess.run(f'pyinstaller --onefile {file}', shell=True, check=True)
 
-shutil.move('./dist/bot.exe', 'bot.exe')
-os.remove('bot.spec')
-
-shutil.move('./dist/restart.exe', 'restart.exe')
-os.remove('restart.spec')
+    FILE_EXE = file.replace('.py', '.exe')
+    FILE_SPEC = file.replace('.py', '.spec')
+    shutil.move(f'./dist/{FILE_EXE}', f'./{FILE_EXE}')
+    os.remove(FILE_SPEC)
 
 shutil.rmtree('build')
 shutil.rmtree('dist')
-
-with zipfile.ZipFile('TelegramSupportBot.zip', 'w') as zipf:
-    zipf.write('bot.exe')
-    zipf.write('restart.exe')
